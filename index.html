@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b2a3f">
+<title>Painel da Lavagem</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eef2f7;
+    --panel: #ffffff;
+    --soft: #e7edf4;
+    --ink: #0b1b2b;
+    --mut: #64748b;
+    --line: #e2e8f0;
+    --hero: #0b2a3f;
+    --accent: #0891b2;
+    --on-accent: #ffffff;
+    --sombra: 0 1px 2px rgba(11,27,43,.06), 0 10px 28px rgba(11,27,43,.07);
+    --font-d: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+    --font-b: "Barlow", system-ui, "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #070f16;
+      --panel: #0f1b25;
+      --soft: #16273a;
+      --ink: #e7eff4;
+      --mut: #8ea3b1;
+      --line: #1c2f40;
+      --hero: #0e4660;
+      --accent: #22d3ee;
+      --on-accent: #04202a;
+      --sombra: 0 1px 2px rgba(0,0,0,.4), 0 10px 28px rgba(0,0,0,.35);
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { scroll-padding-top: 90px; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-b);
+    font-size: 16px;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  body.trava { overflow: hidden; }
+  button { font-family: inherit; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ===== Topo ===== */
+  .topo {
+    position: sticky; top: 0; z-index: 20;
+    background: var(--bg);
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 1px 0 var(--line), 0 6px 20px rgba(11,27,43,.05);
+    padding-top: env(safe-area-inset-top, 0);
+  }
+  .topo-in {
+    max-width: 720px; margin: 0 auto; padding: 12px 16px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .marca { display: flex; align-items: center; gap: 12px; margin-right: auto; min-width: 0; }
+  .marca svg { width: 38px; height: 38px; flex: none; }
+  .marca h1 { font: 700 26px/1 var(--font-d); margin: 0; letter-spacing: .01em; }
+  .marca small { color: var(--mut); font-size: 13px; display: block; margin-top: 2px; }
+  .btn-icone {
+    width: 42px; height: 42px; flex: none; border-radius: 12px; border: 1px solid var(--line);
+    background: var(--panel); color: var(--ink); cursor: pointer; display: grid; place-items: center;
+  }
+  .btn-icone svg { width: 18px; height: 18px; }
+  .btn-icone.gira svg { animation: gira .8s linear infinite; }
+  @keyframes gira { to { transform: rotate(360deg); } }
+
+  main { max-width: 720px; margin: 0 auto; padding: 16px 16px 60px; }
+
+  /* ===== Toggle Hoje / Este mês ===== */
+  .seg { display: flex; background: var(--soft); border-radius: 14px; padding: 4px; gap: 4px; }
+  .seg button {
+    flex: 1; border: 0; background: transparent; color: var(--mut);
+    font: 600 16px var(--font-b); padding: 12px 10px; border-radius: 11px; cursor: pointer;
+  }
+  .seg button.on { background: var(--panel); color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,.16); }
+
+  .periodo-txt { color: var(--mut); font-size: 14px; margin: 12px 2px 14px; }
+  .periodo-txt b { color: var(--ink); }
+
+  /* ===== Cartões ===== */
+  .cartoes { display: flex; flex-direction: column; gap: 14px; }
+  .cartao {
+    position: relative; overflow: hidden; width: 100%; text-align: left;
+    display: block; border: 0; font: inherit; color: var(--ink);
+    background: var(--panel); border-radius: 18px;
+    padding: 18px 20px 18px 26px; cursor: pointer;
+    box-shadow: var(--sombra);
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .cartao::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 8px;
+    background: var(--cor);
+  }
+  .cartao:active { transform: scale(.985); }
+  .cartao .cab { display: flex; align-items: center; gap: 12px; }
+  .avatar {
+    width: 44px; height: 44px; border-radius: 50%; background: var(--cor); color: #fff; flex: none;
+    display: grid; place-items: center; font: 700 22px var(--font-d);
+  }
+  .cartao .nome { font: 700 26px/1 var(--font-d); color: var(--ink); }
+  .cartao .ver { margin-left: auto; color: var(--cor); font: 600 14px var(--font-b); display: flex; align-items: center; gap: 4px; }
+  .cartao .ver svg { width: 16px; height: 16px; }
+  .cartao .total { font: 700 68px/1 var(--font-d); margin: 14px 0 4px; font-variant-numeric: tabular-nums; }
+  .cartao .total small { font: 500 16px var(--font-b); color: var(--mut); margin-left: 8px; }
+
+  .mix { display: flex; height: 10px; border-radius: 99px; overflow: hidden; background: var(--soft); gap: 2px; margin: 10px 0 14px; }
+  .mix i { display: block; height: 100%; min-width: 4px; }
+
+  .tipos { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .tipo-linha {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--soft); border-radius: 10px; padding: 8px 10px; font-size: 14px;
+  }
+  .tipo-linha .bola { width: 11px; height: 11px; border-radius: 3px; flex: none; background: var(--c); }
+  .tipo-linha .rot { color: var(--mut); font-weight: 500; }
+  .tipo-linha .num { margin-left: auto; font: 700 18px var(--font-d); }
+  .tipo-linha.zero { opacity: .5; }
+
+  .msg { background: var(--panel); border: 1px dashed var(--line); border-radius: 14px; padding: 18px; color: var(--mut); }
+  .err { border-color: #b3382c; color: #b3382c; }
+  .link { border: 0; background: none; color: var(--accent); font: inherit; font-weight: 700; cursor: pointer; }
+
+  /* ===== Modal ===== */
+  .modal-fundo {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(0,0,0,.55);
+    display: flex; align-items: flex-end; justify-content: center;
+    padding: 0;
+  }
+  .modal-fundo[hidden] { display: none; }
+  .modal {
+    --cor: #0b2a3f;
+    width: 100%; max-width: 560px; max-height: 88vh; max-height: 88dvh;
+    background: var(--panel); color: var(--ink);
+    border-radius: 22px 22px 0 0;
+    display: flex; flex-direction: column; overflow: hidden;
+    box-shadow: 0 -10px 50px rgba(0,0,0,.4);
+    animation: sobe .22s ease;
+  }
+  @keyframes sobe { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .modal-topo {
+    background: var(--cor);
+    color: #ffffff;
+    padding: 18px 18px 16px 20px;
+    display: flex; align-items: center; gap: 14px; flex: none;
+  }
+  .modal-topo .avatar-m {
+    width: 48px; height: 48px; border-radius: 50%; flex: none;
+    background: rgba(255,255,255,.22); color: #ffffff;
+    display: grid; place-items: center; font: 700 24px var(--font-d);
+  }
+  .modal-topo .titulos { min-width: 0; flex: 1; }
+  .modal-topo h3 { margin: 0; font: 700 28px/1 var(--font-d); color: #ffffff; }
+  .modal-topo p { margin: 4px 0 0; font-size: 14px; color: rgba(255,255,255,.88); }
+  .modal-fechar {
+    width: 40px; height: 40px; flex: none; border-radius: 12px; border: 0;
+    background: rgba(255,255,255,.2); color: #ffffff; cursor: pointer; display: grid; place-items: center;
+  }
+  .modal-fechar svg { width: 18px; height: 18px; }
+  .modal-corpo {
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
+    padding: 6px 16px calc(18px + env(safe-area-inset-bottom, 0));
+    flex: 1 1 auto; min-height: 120px;
+  }
+  .carro { display: grid; grid-template-columns: 74px 1fr; gap: 6px 14px; padding: 14px 0; border-bottom: 1px solid var(--line); align-items: start; }
+  .carro:last-child { border-bottom: 0; }
+  .carro .hora { font: 700 22px/1.05 var(--font-d); color: var(--cor); font-variant-numeric: tabular-nums; }
+  .carro .hora small { display: block; font: 600 12px var(--font-b); color: var(--mut); margin-bottom: 2px; }
+  .carro .modelo { font-size: 17px; font-weight: 600; word-break: break-word; }
+  .carro .chassi { font-size: 14px; color: var(--mut); margin-top: 2px; }
+  .carro .chassi b { color: var(--ink); font-weight: 600; letter-spacing: .04em; }
+  .carro .etq {
+    display: inline-block; margin-top: 8px; padding: 2px 10px; border-radius: 99px;
+    color: #ffffff; font-size: 13px; font-weight: 600; background: var(--c);
+  }
+  .modal-vazio { text-align: center; padding: 36px 12px; color: var(--mut); }
+  .modal-vazio b { display: block; color: var(--ink); font-size: 18px; margin-bottom: 4px; }
+
+  #toast {
+    position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0)); transform: translateX(-50%);
+    background: var(--ink); color: var(--bg); padding: 12px 20px; border-radius: 99px; font-weight: 600;
+    opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 200; max-width: 90vw; text-align: center;
+  }
+  #toast.on { opacity: 1; }
+
+  @media (min-width: 600px) {
+    .modal-fundo { align-items: center; padding: 16px; }
+    .modal { border-radius: 22px; max-height: 86vh; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .btn-icone.gira svg { animation: none; }
+    .modal { animation: none; }
+    .cartao { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topo">
+  <div class="topo-in">
+    <div class="marca">
+      <svg viewBox="0 0 40 40" aria-hidden="true">
+        <rect width="40" height="40" rx="11" fill="#0b2a3f"/>
+        <path d="M20 7 L28.5 19.5 A9.5 9.5 0 1 1 11.5 19.5 Z" fill="#fff"/>
+        <ellipse cx="16.8" cy="23.5" rx="1.8" ry="3.6" fill="#a9d6e8"/>
+      </svg>
+      <div>
+        <h1>Painel da Lavagem</h1>
+        <small id="atualizado">Carregando…</small>
+      </div>
+    </div>
+    <button type="button" class="btn-icone" id="atualizar" title="Atualizar dados" aria-label="Atualizar dados">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+    </button>
+  </div>
+</div>
+
+<main>
+  <div class="seg" id="barra" role="group" aria-label="Período">
+    <button type="button" data-p="hoje">Hoje</button>
+    <button type="button" data-p="mes">Este mês</button>
+  </div>
+  <div class="periodo-txt" id="periodoTxt"></div>
+  <div id="conteudo"></div>
+</main>
+
+<div class="modal-fundo" id="modalFundo" hidden>
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalNome">
+    <div class="modal-topo" id="modalTopo">
+      <div class="avatar-m" id="modalAvatar"></div>
+      <div class="titulos">
+        <h3 id="modalNome"></h3>
+        <p id="modalSub"></p>
+      </div>
+      <button type="button" class="modal-fechar" id="modalFechar" aria-label="Fechar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-corpo" id="modalCorpo"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  const DB = "https://controle-de-lavagens-78b2e-default-rtdb.firebaseio.com";
+  const EQUIPE = {
+    Felipe: "#0f766e",
+    Marcos: "#be185d",
+    Jonathan: "#4338ca"
+  };
+  const TIPOS = { novo: "Carro novo", of: "Oficina", teste: "Test drive", show: "Showroom", outros: "Outros" };
+  const COR_TIPO = { novo: "#1b7f4b", of: "#b3382c", teste: "#b86e00", show: "#1f5fbf", outros: "#6b7280" };
+  const PERIODOS = { hoje: "Hoje", mes: "Este mês" };
+  const nomes = Object.keys(EQUIPE);
+  const chavesTipos = Object.keys(TIPOS);
+
+  // ============================================================
+  // REGRA DE DATA — fuso fixo de São Luís / Fortaleza
+  // O dia operacional troca à meia-noite (HORA_VIRADA = 24).
+  // Se quiser voltar a virar às 20h, troque para 20 aqui.
+  // ============================================================
+  const FUSO = "America/Fortaleza";
+  const HORA_VIRADA = 24;
+
+  let periodo = "hoje";
+  let bruto = null;
+  let erro = "";
+  let carregando = true;
+  let atualizadoEm = null;
+  let colaboradorAberto = null;
+
+  const $ = (seletor) => document.querySelector(seletor);
+
+  function esc(t) {
+    return String(t == null ? "" : t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  function iso(d) {
+    const mes = String(d.getMonth() + 1).padStart(2, "0");
+    const dia = String(d.getDate()).padStart(2, "0");
+    return d.getFullYear() + "-" + mes + "-" + dia;
+  }
+
+  // Devolve o dia e a hora (0-23) de um instante, sempre no fuso de São Luís.
+  function partesNoFuso(ms) {
+    const f = new Intl.DateTimeFormat("en-CA", {
+      timeZone: FUSO,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      hour12: false
+    });
+    const p = Object.fromEntries(f.formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
+    return { dia: p.year + "-" + p.month + "-" + p.day, hora: Number(p.hour) % 24 };
+  }
+
+  // Converte qualquer ts em milissegundos. Se vier em segundos (10 dígitos), multiplica por 1000.
+  function tsEmMs(ts) {
+    const n = Number(ts);
+    if (!Number.isFinite(n) || n <= 0) return null;
+    if (n < 1e12) return n * 1000; // segundos -> milissegundos
+    return n;
+  }
+
+  // Dia operacional de um registro a partir do horário real.
+  function diaOperacionalDe(ts) {
+    const ms = tsEmMs(ts);
+    if (ms === null) return null;
+    const { dia, hora } = partesNoFuso(ms);
+    if (hora < HORA_VIRADA) return dia;
+    const [a, m, d] = dia.split("-").map(Number);
+    return iso(new Date(a, m - 1, d + 1));
+  }
+
+  // Hoje operacional, sempre no fuso de São Luís.
+  function hojeOperacional() {
+    return diaOperacionalDe(Date.now());
+  }
+
+  // Base dos períodos: meia-noite do dia operacional de hoje (Date local só para cálculo).
+  function baseOperacional() {
+    const [a, m, d] = hojeOperacional().split("-").map(Number);
+    return new Date(a, m - 1, d);
+  }
+
+  function brData(dia) { return dia.split("-").reverse().join("/"); }
+  function fmtDiaCurto(dia) { const p = dia.split("-"); return p[2] + "/" + p[1]; }
+
+  // Hora exibida SEMPRE no fuso de São Luís, não importa o relógio do aparelho.
+  function hora(ts) {
+    const ms = tsEmMs(ts);
+    if (ms === null) return "—";
+    return new Date(ms).toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: FUSO
+    });
+  }
+
+  function toast(mensagem) {
+    const t = $("#toast");
+    t.textContent = mensagem;
+    t.classList.add("on");
+    clearTimeout(toast.timer);
+    toast.timer = setTimeout(() => t.classList.remove("on"), 2600);
+  }
+
+  // Busca sem cache: o Firebase pode devolver resposta velha se o navegador cachear.
+  async function buscar(caminho) {
+    const url = DB + "/" + caminho + ".json?_=" + Date.now();
+    let resposta;
+    try {
+      resposta = await fetch(url, { cache: "no-store" });
+    } catch (e) {
+      throw new Error("Sem conexão com o banco de dados. Verifique a internet.");
+    }
+    if (resposta.status === 401 || resposta.status === 403) {
+      throw new Error("O banco recusou a leitura. Confira as regras do Firebase.");
+    }
+    if (!resposta.ok) throw new Error("Erro do banco de dados (" + resposta.status + ").");
+    return (await resposta.json()) || {};
+  }
+
+  // ============================================================
+  // REINDEXAÇÃO — a peça central da correção
+  // Cada registro é recolocado no dia operacional correto a partir do ts.
+  // Se não tiver ts, mantém a chave original (não some, não muda de dia).
+  // ============================================================
+  function reindexar(origem) {
+    const saida = {};
+    if (!origem || typeof origem !== "object") return saida;
+    for (const [diaGravado, regs] of Object.entries(origem)) {
+      if (!regs || typeof regs !== "object") continue;
+      for (const [id, r] of Object.entries(regs)) {
+        const diaCalculado = r && r.ts ? diaOperacionalDe(r.ts) : null;
+        const dia = diaCalculado || diaGravado;
+        if (!saida[dia]) saida[dia] = {};
+        saida[dia][id] = r;
+      }
+    }
+    return saida;
+  }
+
+  async function carregar() {
+    carregando = true;
+    erro = "";
+    $("#atualizar").classList.add("gira");
+    render();
+    try {
+      const lavagens = await buscar("lavagens");
+      bruto = { lavagens: reindexar(lavagens) };
+      atualizadoEm = new Date();
+    } catch (e) {
+      erro = e.message;
+    }
+    carregando = false;
+    $("#atualizar").classList.remove("gira");
+    render();
+    if (colaboradorAberto) renderModal();
+  }
+
+  // Início do período (Hoje ou Este mês), em dia operacional.
+  function inicioDoPeriodo() {
+    const d = baseOperacional();
+    if (periodo === "mes") d.setDate(1);
+    return iso(d);
+  }
+  function intervaloTexto() {
+    const inicio = inicioDoPeriodo();
+    const fim = hojeOperacional();
+    return inicio === fim ? brData(fim) : brData(inicio) + " a " + brData(fim);
+  }
+
+  // Registros de um colaborador no período selecionado.
+  function registrosDoColaborador(nome) {
+    const inicio = inicioDoPeriodo();
+    const saida = [];
+    if (!bruto) return saida;
+    for (const [dia, registros] of Object.entries(bruto.lavagens)) {
+      if (dia < inicio) continue;
+      for (const [id, r] of Object.entries(registros || {})) {
+        if (!r || r.nome !== nome) continue;
+        saida.push({ dia, id, ...r });
+      }
+    }
+    return saida;
+  }
+
+  function resumoDoColaborador(nome) {
+    const regs = registrosDoColaborador(nome);
+    const tipos = { novo: 0, of: 0, teste: 0, show: 0, outros: 0 };
+    regs.forEach((r) => {
+      if (tipos[r.tipo] !== undefined) tipos[r.tipo]++;
+      else tipos.outros++;
+    });
+    return { total: regs.length, tipos };
+  }
+
+  function nomeDoTipo(k) { return TIPOS[k] || "Outros"; }
+  function corDoTipo(k) { return COR_TIPO[k] || COR_TIPO.outros; }
+
+  function barraMix(tipos) {
+    const total = chavesTipos.reduce((s, k) => s + tipos[k], 0);
+    const partes = total
+      ? chavesTipos.filter((k) => tipos[k]).map((k) =>
+          `<i style="width:${(tipos[k] / total) * 100}%;background:${COR_TIPO[k]}" title="${TIPOS[k]}: ${tipos[k]}"></i>`).join("")
+      : "";
+    return `<div class="mix">${partes}</div>`;
+  }
+
+  function render() {
+    document.querySelectorAll("#barra [data-p]").forEach((b) => b.classList.toggle("on", b.dataset.p === periodo));
+    $("#atualizado").textContent = atualizadoEm
+      ? "Atualizado às " + atualizadoEm.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: FUSO })
+      : (carregando ? "Carregando…" : "Sem dados");
+
+    const alvo = $("#conteudo");
+
+    if (!bruto) {
+      $("#periodoTxt").textContent = "";
+      if (carregando) {
+        alvo.innerHTML = `<div class="msg">Carregando dados…</div>`;
+      } else {
+        alvo.innerHTML = `<div class="msg err">${esc(erro)} <button type="button" class="link" id="tentar">Tentar de novo</button></div>`;
+        $("#tentar").onclick = carregar;
+      }
+      return;
+    }
+
+    $("#periodoTxt").innerHTML = "<b>" + PERIODOS[periodo] + "</b> · " + intervaloTexto();
+
+    const aviso = erro ? `<div class="msg err" style="margin-bottom:14px">${esc(erro)} Mostrando os últimos dados carregados.</div>` : "";
+
+    const cartoes = nomes.map((n) => {
+      const r = resumoDoColaborador(n);
+      const linhasTipos = chavesTipos.map((k) => `
+        <div class="tipo-linha ${r.tipos[k] ? "" : "zero"}" style="--c:${COR_TIPO[k]}">
+          <span class="bola"></span><span class="rot">${TIPOS[k]}</span><span class="num">${r.tipos[k]}</span>
+        </div>`).join("");
+      return `
+        <button type="button" class="cartao" data-nome="${esc(n)}" style="--cor:${EQUIPE[n]}" aria-label="Ver carros de ${esc(n)}">
+          <div class="cab">
+            <span class="avatar" style="--cor:${EQUIPE[n]}">${esc(n.charAt(0))}</span>
+            <span class="nome">${esc(n)}</span>
+            <span class="ver">Ver carros
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </span>
+          </div>
+          <div class="total">${r.total}<small>${r.total === 1 ? "carro" : "carros"}</small></div>
+          ${barraMix(r.tipos)}
+          <div class="tipos">${linhasTipos}</div>
+        </button>`;
+    }).join("");
+
+    alvo.innerHTML = aviso + `<div class="cartoes">${cartoes}</div>`;
+
+    alvo.querySelectorAll(".cartao").forEach((b) => {
+      b.onclick = () => abrirModal(b.dataset.nome);
+    });
+  }
+
+  // ============================================================
+  // MODAL — a cor do colaborador é aplicada DIRETO no elemento
+  // do modal (style --cor) e no topo (background), com fallback.
+  // ============================================================
+  function abrirModal(nome) {
+    if (!EQUIPE[nome]) return;
+    colaboradorAberto = nome;
+    renderModal();
+    $("#modalFundo").hidden = false;
+    document.body.classList.add("trava");
+    $("#modalCorpo").scrollTop = 0;
+    $("#modalFechar").focus();
+  }
+
+  function fecharModal() {
+    colaboradorAberto = null;
+    $("#modalFundo").hidden = true;
+    document.body.classList.remove("trava");
+  }
+
+  function renderModal() {
+    const nome = colaboradorAberto;
+    if (!nome) return;
+    const cor = EQUIPE[nome];
+    const modal = $("#modal");
+    modal.style.setProperty("--cor", cor);
+    $("#modalTopo").style.background = cor;
+
+    const regs = registrosDoColaborador(nome).sort((a, b) => (tsEmMs(b.ts) || 0) - (tsEmMs(a.ts) || 0));
+
+    $("#modalAvatar").textContent = nome.charAt(0);
+    $("#modalNome").textContent = nome;
+    $("#modalSub").textContent = PERIODOS[periodo] + " · " + regs.length + (regs.length === 1 ? " carro" : " carros");
+
+    const corpo = $("#modalCorpo");
+    if (!bruto) {
+      corpo.innerHTML = `<div class="modal-vazio"><b>Sem dados</b>Use o botão de atualizar no topo.</div>`;
+      return;
+    }
+    if (!regs.length) {
+      corpo.innerHTML = `<div class="modal-vazio"><b>Nenhum carro</b>${esc(nome)} não tem lavagens em "${PERIODOS[periodo].toLowerCase()}".</div>`;
+      return;
+    }
+
+    corpo.innerHTML = regs.map((r) => {
+      const dataTxt = periodo === "mes" ? `<small>${fmtDiaCurto(r.dia)}</small>` : "";
+      const c = corDoTipo(r.tipo);
+      return `
+        <div class="carro">
+          <div class="hora">${dataTxt}${esc(hora(r.ts))}</div>
+          <div>
+            <div class="modelo">${esc(r.carro || "Modelo não registrado")}</div>
+            <div class="chassi">Chassi <b>${esc(r.placa || "-")}</b></div>
+            <span class="etq" style="--c:${c};background:${c}">${esc(nomeDoTipo(r.tipo))}</span>
+          </div>
+        </div>`;
+    }).join("");
+  }
+
+  // ===== Eventos =====
+  document.querySelectorAll("#barra [data-p]").forEach((b) => {
+    b.onclick = () => {
+      periodo = b.dataset.p;
+      render();
+      if (colaboradorAberto) { renderModal(); $("#modalCorpo").scrollTop = 0; }
+    };
+  });
+  $("#atualizar").onclick = carregar;
+  $("#modalFechar").onclick = fecharModal;
+  $("#modalFundo").addEventListener("click", (e) => {
+    if (e.target.id === "modalFundo") fecharModal();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && colaboradorAberto) fecharModal();
+  });
+
+  carregar();
+
+  // Quando o dia operacional virar, recarrega sozinho.
+  let diaAtualVisivel = hojeOperacional();
+  setInterval(() => {
+    const novoDia = hojeOperacional();
+    if (novoDia !== diaAtualVisivel) {
+      diaAtualVisivel = novoDia;
+      carregar();
+    }
+  }, 60000);
+</script>
+</body>
+</html>
