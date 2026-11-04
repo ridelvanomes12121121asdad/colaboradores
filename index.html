@@ -90,6 +90,19 @@
   .periodo-txt { color: var(--mut); font-size: 14px; margin: 12px 2px 14px; }
   .periodo-txt b { color: var(--ink); }
 
+  /* ===== Títulos de seção ===== */
+  h2 {
+    font-family: var(--font-d);
+    display: flex; align-items: center; gap: 12px;
+    font-size: 26px; font-weight: 700; margin: 40px 0 4px;
+    letter-spacing: .01em;
+  }
+  h2::before {
+    content: ""; width: 6px; height: 24px; border-radius: 4px;
+    background: linear-gradient(var(--accent), #22d3ee);
+  }
+  .nota { color: var(--mut); font-size: 14px; margin: 0 0 14px; }
+
   /* ===== Cartões ===== */
   .cartoes { display: flex; flex-direction: column; gap: 14px; }
   .cartao {
@@ -132,6 +145,31 @@
   .msg { background: var(--panel); border: 1px dashed var(--line); border-radius: 14px; padding: 18px; color: var(--mut); }
   .err { border-color: #b3382c; color: #b3382c; }
   .link { border: 0; background: none; color: var(--accent); font: inherit; font-weight: 700; cursor: pointer; }
+
+  /* ===== Chip (usado nas idas) ===== */
+  .chip { display: inline-block; padding: 2px 10px; border-radius: 99px; color: #fff; font-size: 13px; font-weight: 600; background: var(--cor); }
+
+  /* ===== Idas ao showroom em sanfona ===== */
+  .sanfona { background: var(--panel); border-radius: 14px; box-shadow: var(--sombra); margin-bottom: 10px; overflow: hidden; }
+  .sanfona summary {
+    list-style: none; cursor: pointer; display: flex; align-items: center; gap: 12px;
+    padding: 18px 20px; font: 700 22px var(--font-d);
+  }
+  .sanfona summary::-webkit-details-marker { display: none; }
+  .sanfona summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .sanfona summary::after {
+    content: ""; width: 9px; height: 9px; margin: 0 4px 4px 4px;
+    border-right: 3px solid var(--mut); border-bottom: 3px solid var(--mut);
+    transform: rotate(45deg); transition: transform .2s;
+  }
+  .sanfona[open] summary::after { transform: rotate(-135deg); margin-bottom: -4px; }
+  .sanfona .sf-qtd { margin-left: auto; color: var(--accent); }
+  .sf-lista { border-top: 1px solid var(--line); padding: 6px 20px 12px; }
+  .sf-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 11px 0; border-bottom: 1px solid var(--line); }
+  .sf-linha:last-child { border-bottom: 0; }
+  .sf-linha .sep { color: var(--mut); }
+  .sf-linha .sf-hora { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .sf-linha .sf-det { color: var(--mut); }
 
   /* ===== Modal ===== */
   .modal-fundo {
@@ -204,6 +242,7 @@
     .btn-icone.gira svg { animation: none; }
     .modal { animation: none; }
     .cartao { transition: none; }
+    .sanfona summary::after { transition: none; }
   }
 </style>
 </head>
@@ -257,10 +296,14 @@
 
 <script>
   const DB = "https://controle-de-lavagens-78b2e-default-rtdb.firebaseio.com";
+  // ============================================================
+  // EQUIPE — inclui o Danilo
+  // ============================================================
   const EQUIPE = {
     Felipe: "#0f766e",
     Marcos: "#be185d",
-    Jonathan: "#4338ca"
+    Jonathan: "#4338ca",
+    Danilo: "#c2410c"
   };
   const TIPOS = { novo: "Carro novo", of: "Oficina", teste: "Test drive", show: "Showroom", outros: "Outros" };
   const COR_TIPO = { novo: "#1b7f4b", of: "#b3382c", teste: "#b86e00", show: "#1f5fbf", outros: "#6b7280" };
@@ -270,8 +313,6 @@
 
   // ============================================================
   // REGRA DE DATA — fuso fixo de São Luís / Fortaleza
-  // O dia operacional troca à meia-noite (HORA_VIRADA = 24).
-  // Se quiser voltar a virar às 20h, troque para 20 aqui.
   // ============================================================
   const FUSO = "America/Fortaleza";
   const HORA_VIRADA = 24;
@@ -295,7 +336,6 @@
     return d.getFullYear() + "-" + mes + "-" + dia;
   }
 
-  // Devolve o dia e a hora (0-23) de um instante, sempre no fuso de São Luís.
   function partesNoFuso(ms) {
     const f = new Intl.DateTimeFormat("en-CA", {
       timeZone: FUSO,
@@ -309,15 +349,13 @@
     return { dia: p.year + "-" + p.month + "-" + p.day, hora: Number(p.hour) % 24 };
   }
 
-  // Converte qualquer ts em milissegundos. Se vier em segundos (10 dígitos), multiplica por 1000.
   function tsEmMs(ts) {
     const n = Number(ts);
     if (!Number.isFinite(n) || n <= 0) return null;
-    if (n < 1e12) return n * 1000; // segundos -> milissegundos
+    if (n < 1e12) return n * 1000;
     return n;
   }
 
-  // Dia operacional de um registro a partir do horário real.
   function diaOperacionalDe(ts) {
     const ms = tsEmMs(ts);
     if (ms === null) return null;
@@ -327,12 +365,10 @@
     return iso(new Date(a, m - 1, d + 1));
   }
 
-  // Hoje operacional, sempre no fuso de São Luís.
   function hojeOperacional() {
     return diaOperacionalDe(Date.now());
   }
 
-  // Base dos períodos: meia-noite do dia operacional de hoje (Date local só para cálculo).
   function baseOperacional() {
     const [a, m, d] = hojeOperacional().split("-").map(Number);
     return new Date(a, m - 1, d);
@@ -340,8 +376,12 @@
 
   function brData(dia) { return dia.split("-").reverse().join("/"); }
   function fmtDiaCurto(dia) { const p = dia.split("-"); return p[2] + "/" + p[1]; }
+  function fmtDiaSanfona(dia) {
+    const [a, m, d] = dia.split("-").map(Number);
+    const s = new Date(a, m - 1, d).toLocaleDateString("pt-BR", { weekday: "long" });
+    return s.charAt(0).toUpperCase() + s.slice(1) + ", " + String(d).padStart(2, "0") + "/" + String(m).padStart(2, "0");
+  }
 
-  // Hora exibida SEMPRE no fuso de São Luís, não importa o relógio do aparelho.
   function hora(ts) {
     const ms = tsEmMs(ts);
     if (ms === null) return "—";
@@ -360,7 +400,6 @@
     toast.timer = setTimeout(() => t.classList.remove("on"), 2600);
   }
 
-  // Busca sem cache: o Firebase pode devolver resposta velha se o navegador cachear.
   async function buscar(caminho) {
     const url = DB + "/" + caminho + ".json?_=" + Date.now();
     let resposta;
@@ -376,11 +415,6 @@
     return (await resposta.json()) || {};
   }
 
-  // ============================================================
-  // REINDEXAÇÃO — a peça central da correção
-  // Cada registro é recolocado no dia operacional correto a partir do ts.
-  // Se não tiver ts, mantém a chave original (não some, não muda de dia).
-  // ============================================================
   function reindexar(origem) {
     const saida = {};
     if (!origem || typeof origem !== "object") return saida;
@@ -402,8 +436,15 @@
     $("#atualizar").classList.add("gira");
     render();
     try {
-      const lavagens = await buscar("lavagens");
-      bruto = { lavagens: reindexar(lavagens) };
+      // Busca lavagens e showroom em paralelo (showroom pode não existir, cai no catch)
+      const [lavagens, showroom] = await Promise.all([
+        buscar("lavagens"),
+        buscar("showroom").catch(() => ({}))
+      ]);
+      bruto = {
+        lavagens: reindexar(lavagens),
+        showroom: reindexar(showroom)
+      };
       atualizadoEm = new Date();
     } catch (e) {
       erro = e.message;
@@ -414,7 +455,6 @@
     if (colaboradorAberto) renderModal();
   }
 
-  // Início do período (Hoje ou Este mês), em dia operacional.
   function inicioDoPeriodo() {
     const d = baseOperacional();
     if (periodo === "mes") d.setDate(1);
@@ -426,7 +466,6 @@
     return inicio === fim ? brData(fim) : brData(inicio) + " a " + brData(fim);
   }
 
-  // Registros de um colaborador no período selecionado.
   function registrosDoColaborador(nome) {
     const inicio = inicioDoPeriodo();
     const saida = [];
@@ -463,6 +502,36 @@
     return `<div class="mix">${partes}</div>`;
   }
 
+  // ============================================================
+  // ORDENAÇÃO DINÂMICA — quem tem mais carros no período fica no topo.
+  // ============================================================
+  function nomesOrdenadosPorTotal() {
+    const resumos = nomes.map((n) => ({ nome: n, total: resumoDoColaborador(n).total }));
+    resumos.sort((a, b) => b.total - a.total);
+    return resumos.map((r) => r.nome);
+  }
+
+  // ============================================================
+  // IDAS AO SHOWROOM — agrupadas por dia, no período selecionado
+  // Retorno: { idasPorDia: { "2025-01-01": { Felipe: [{ts, detalhe}], ... } }, totalIdas }
+  // ============================================================
+  function idasDoPeriodo() {
+    const inicio = inicioDoPeriodo();
+    const idasPorDia = {};
+    let totalIdas = 0;
+    if (!bruto || !bruto.showroom) return { idasPorDia, totalIdas };
+    for (const [dia, registros] of Object.entries(bruto.showroom)) {
+      if (dia < inicio) continue;
+      for (const r of Object.values(registros || {})) {
+        if (!r || !EQUIPE[r.nome]) continue;
+        const d = idasPorDia[dia] || (idasPorDia[dia] = {});
+        (d[r.nome] = d[r.nome] || []).push({ ts: r.ts, detalhe: r.detalhe || "" });
+        totalIdas++;
+      }
+    }
+    return { idasPorDia, totalIdas };
+  }
+
   function render() {
     document.querySelectorAll("#barra [data-p]").forEach((b) => b.classList.toggle("on", b.dataset.p === periodo));
     $("#atualizado").textContent = atualizadoEm
@@ -486,7 +555,10 @@
 
     const aviso = erro ? `<div class="msg err" style="margin-bottom:14px">${esc(erro)} Mostrando os últimos dados carregados.</div>` : "";
 
-    const cartoes = nomes.map((n) => {
+    // Cartões ordenados dinamicamente
+    const ordem = nomesOrdenadosPorTotal();
+
+    const cartoes = ordem.map((n) => {
       const r = resumoDoColaborador(n);
       const linhasTipos = chavesTipos.map((k) => `
         <div class="tipo-linha ${r.tipos[k] ? "" : "zero"}" style="--c:${COR_TIPO[k]}">
@@ -507,17 +579,46 @@
         </button>`;
     }).join("");
 
-    alvo.innerHTML = aviso + `<div class="cartoes">${cartoes}</div>`;
+    // ============ IDAS AO SHOWROOM (sanfona por dia) ============
+    const { idasPorDia, totalIdas } = idasDoPeriodo();
+    const diasIda = Object.keys(idasPorDia).sort().reverse();
+
+    const listaIda = diasIda.length
+      ? diasIda.map((dia) => {
+          const doDia = idasPorDia[dia];
+          const itens = [];
+          nomes.forEach((n) => (doDia[n] || []).forEach((x) => itens.push({ nome: n, ts: x.ts, detalhe: x.detalhe })));
+          itens.sort((a, b) => (tsEmMs(a.ts) || 0) - (tsEmMs(b.ts) || 0));
+          const linhas = itens.map((x) => `
+            <div class="sf-linha">
+              <span class="chip" style="--cor:${EQUIPE[x.nome]}">${esc(x.nome)}</span>
+              <span class="sep">·</span><span class="sf-hora">${esc(hora(x.ts))}</span>
+              <span class="sep">·</span><span class="sf-det">${esc(x.detalhe || "Apenas check-in")}</span>
+            </div>`).join("");
+          return `
+            <details class="sanfona"${diasIda.length === 1 ? " open" : ""}>
+              <summary>
+                <span>${esc(fmtDiaSanfona(dia))}</span>
+                <span class="sf-qtd">${itens.length} ${itens.length === 1 ? "ida" : "idas"}</span>
+              </summary>
+              <div class="sf-lista">${linhas}</div>
+            </details>`;
+        }).join("")
+      : `<div class="msg">Nenhuma ida ao showroom neste período.</div>`;
+
+    alvo.innerHTML = aviso + `
+      <div class="cartoes">${cartoes}</div>
+
+      <h2>Idas ao showroom</h2>
+      <p class="nota">${totalIdas} ${totalIdas === 1 ? "ida registrada" : "idas registradas"} no período. Toque no dia para ver quem foi, a que horas e o que fez.</p>
+      <div>${listaIda}</div>
+    `;
 
     alvo.querySelectorAll(".cartao").forEach((b) => {
       b.onclick = () => abrirModal(b.dataset.nome);
     });
   }
 
-  // ============================================================
-  // MODAL — a cor do colaborador é aplicada DIRETO no elemento
-  // do modal (style --cor) e no topo (background), com fallback.
-  // ============================================================
   function abrirModal(nome) {
     if (!EQUIPE[nome]) return;
     colaboradorAberto = nome;
@@ -592,7 +693,6 @@
 
   carregar();
 
-  // Quando o dia operacional virar, recarrega sozinho.
   let diaAtualVisivel = hojeOperacional();
   setInterval(() => {
     const novoDia = hojeOperacional();
