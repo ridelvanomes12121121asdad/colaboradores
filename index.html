@@ -244,6 +244,40 @@
     .cartao { transition: none; }
     .sanfona summary::after { transition: none; }
   }
+
+  /* ===== Planilha do dia (somente leitura) ===== */
+  .btn-icone[hidden] { display: none; }
+  .plm-fundo { position: fixed; inset: 0; z-index: 110; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .plm-fundo[hidden] { display: none; }
+  .plm { width: min(100%, 1150px); max-height: 92vh; max-height: 92dvh; background: var(--panel); color: var(--ink); border-radius: 20px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.45); }
+  .plm-topo { display: flex; align-items: center; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--line); flex: none; }
+  .plm-topo h3 { margin: 0; font: 700 26px/1 var(--font-d); }
+  .plm-topo p { margin: 4px 0 0; font-size: 14px; color: var(--mut); }
+  .plm-fechar { margin-left: auto; width: 40px; height: 40px; flex: none; border-radius: 12px; border: 1px solid var(--line); background: var(--soft); color: var(--ink); cursor: pointer; display: grid; place-items: center; }
+  .plm-fechar svg { width: 18px; height: 18px; }
+  .plm-corpo { overflow-y: auto; padding: 16px 20px 20px; }
+  .plm-resumo { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+  .plm-chip { flex: 1; min-width: 120px; background: var(--soft); border-radius: 12px; padding: 12px 14px; border-left: 6px solid var(--c); }
+  .plm-chip b { display: block; font: 700 30px/1 var(--font-d); color: var(--c); }
+  .plm-chip span { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--mut); }
+  .plm-barra { display: flex; height: 10px; border-radius: 99px; overflow: hidden; background: var(--soft); gap: 2px; margin-bottom: 16px; }
+  .plm-barra i { display: block; height: 100%; }
+  .pl-wrap { overflow-x: auto; border-radius: 12px; }
+  table.pl-tab { width: 100%; border-collapse: collapse; text-align: center; min-width: 820px; }
+  table.pl-tab th { background: #3b82f6; color: #fff; padding: 10px 8px; font-size: 13px; border: 1px solid #1e40af; text-transform: uppercase; }
+  table.pl-tab td { background: #ffffff; padding: 10px 8px; border: 1px solid #94a3b8; font-size: 14px; font-weight: 700; color: #12232e; text-transform: uppercase; white-space: nowrap; }
+  table.pl-tab td.d { text-align: left; padding-left: 10px; }
+  table.pl-tab td.ch { color: #16a34a; }
+  table.pl-tab td.red { background: #e11d48; color: #000; }
+  table.pl-tab tr.ok td { background: #dcfce7; color: #166534; }
+  table.pl-tab tr.ok td.red { background: #fca5a5; }
+  table.pl-tab tr.ok td.ch { color: #166534; }
+  table.pl-tab tr.sub td { background: #fef3c7; color: #92400e; }
+  table.pl-tab tr.sub td.red { background: #fcd34d; }
+  table.pl-tab tr.sub td.ch { color: #92400e; }
+  .pl-selo { display: inline-block; background: #94a3b8; color: #fff; font-size: 11px; padding: 3px 8px; border-radius: 5px; }
+  .pl-selo.ok { background: #16a34a; }
+  .pl-selo.sub { background: #d97706; }
 </style>
 </head>
 <body>
@@ -261,6 +295,9 @@
         <small id="atualizado">Carregando…</small>
       </div>
     </div>
+    <button type="button" class="btn-icone" id="btnPlanilha" title="Ver planilha de hoje" aria-label="Ver planilha de hoje" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+    </button>
     <button type="button" class="btn-icone" id="atualizar" title="Atualizar dados" aria-label="Atualizar dados">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
     </button>
@@ -289,6 +326,21 @@
       </button>
     </div>
     <div class="modal-corpo" id="modalCorpo"></div>
+  </div>
+</div>
+
+<div class="plm-fundo" id="plmFundo" hidden>
+  <div class="plm" role="dialog" aria-modal="true" aria-labelledby="plmTitulo">
+    <div class="plm-topo">
+      <div>
+        <h3 id="plmTitulo">Planilha de hoje</h3>
+        <p id="plmSub"></p>
+      </div>
+      <button type="button" class="plm-fechar" id="plmFechar" aria-label="Fechar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="plm-corpo" id="plmCorpo"></div>
   </div>
 </div>
 
@@ -437,10 +489,12 @@
     render();
     try {
       // Busca lavagens e showroom em paralelo (showroom pode não existir, cai no catch)
-      const [lavagens, showroom] = await Promise.all([
+      const [lavagens, showroom, pl] = await Promise.all([
         buscar("lavagens"),
-        buscar("showroom").catch(() => ({}))
+        buscar("showroom").catch(() => ({})),
+        buscar("planilha").catch(() => ({}))
       ]);
+      planilha = planilhaDeHoje(pl);
       bruto = {
         lavagens: reindexar(lavagens),
         showroom: reindexar(showroom)
@@ -453,6 +507,7 @@
     $("#atualizar").classList.remove("gira");
     render();
     if (colaboradorAberto) renderModal();
+    atualizarPlanilha();
   }
 
   function inicioDoPeriodo() {
@@ -691,7 +746,120 @@
     if (e.key === "Escape" && colaboradorAberto) fecharModal();
   });
 
+  // ============================================================
+  // PLANILHA DO DIA — somente leitura. Vem do banco (/planilha) e só vale no dia
+  // em que foi colocada. O botão do topo só aparece se houver planilha de hoje.
+  // Status: o que foi marcado no controle vale; sem marcação, o chassi decide.
+  // ============================================================
+  let planilha = [];
+
+  function diaCalendario() {
+    const p = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: FUSO, year: "numeric", month: "2-digit", day: "2-digit" })
+      .formatToParts(new Date()).map((x) => [x.type, x.value]));
+    return p.year + "-" + p.month + "-" + p.day;
+  }
+  function planilhaDeHoje(pl) {
+    return (pl && pl.dia === diaCalendario() && Array.isArray(pl.dados)) ? pl.dados : [];
+  }
+  function bate(a, b) {
+    a = String(a || "").replace(/\D/g, "");
+    b = String(b || "").replace(/\D/g, "");
+    const n = Math.min(5, a.length, b.length);
+    return n >= 4 && a.slice(-n) === b.slice(-n);
+  }
+  function statusDaLinha(l, placas) {
+    const manual = ["pendente", "lavado", "substituido"].includes(l.status) ? l.status : null;
+    return manual || (placas.some((p) => bate(l.chassi, p)) ? "lavado" : "pendente");
+  }
+  function placasLavadas() {
+    const placas = [];
+    if (bruto) {
+      for (const regs of Object.values(bruto.lavagens)) {
+        for (const r of Object.values(regs || {})) if (r && r.placa) placas.push(r.placa);
+      }
+    }
+    return placas;
+  }
+  function linhaPlanilhaHtml(l, st) {
+    const v = l.fundoVermelho ? " red" : "";
+    const classe = st === "lavado" ? "ok" : st === "substituido" ? "sub" : "";
+    const selo = st === "lavado" ? '<span class="pl-selo ok">✔ LAVADO</span>'
+               : st === "substituido" ? '<span class="pl-selo sub">SUBSTITUÍDO</span>'
+               : '<span class="pl-selo">PENDENTE</span>';
+    return `
+      <tr class="${classe}">
+        <td class="d${v}">${esc(String(l.data || "").replace(/[\r\n]+/g, " "))}</td>
+        <td>${esc(l.horario || "")}</td>
+        <td class="${v.trim()}">${esc(l.cliente || "")}</td>
+        <td>${esc(l.origem || "")}</td>
+        <td>${esc(l.modelo || "")}</td>
+        <td>${esc(l.cor || "")}</td>
+        <td class="ch">${esc(l.chassi || "")}</td>
+        <td>${selo}</td>
+      </tr>`;
+  }
+
+  function planilhaAberta() { return !$("#plmFundo").hidden; }
+
+  function renderPlanilha() {
+    const placas = placasLavadas();
+    let l = 0, sub = 0, p = 0;
+    const linhas = planilha.map((x) => {
+      const st = statusDaLinha(x, placas);
+      if (st === "lavado") l++; else if (st === "substituido") sub++; else p++;
+      return linhaPlanilhaHtml(x, st);
+    }).join("");
+    const total = planilha.length;
+    const seg = (n, cor) => n ? `<i style="width:${(n / total) * 100}%;background:${cor}"></i>` : "";
+    $("#plmSub").textContent = textoDataLonga() + " · atualiza sozinha";
+    $("#plmCorpo").innerHTML = `
+      <div class="plm-resumo">
+        <div class="plm-chip" style="--c:#475569"><b>${total}</b><span>Carros na planilha</span></div>
+        <div class="plm-chip" style="--c:#16a34a"><b>${l}</b><span>Lavados</span></div>
+        <div class="plm-chip" style="--c:#d97706"><b>${sub}</b><span>Substituídos</span></div>
+        <div class="plm-chip" style="--c:#64748b"><b>${p}</b><span>Pendentes</span></div>
+      </div>
+      <div class="plm-barra">${seg(l, "#16a34a")}${seg(sub, "#d97706")}${seg(p, "#94a3b8")}</div>
+      <div class="pl-wrap">
+        <table class="pl-tab">
+          <thead>
+            <tr><th>DATA</th><th>HORÁRIO</th><th>CLIENTE</th><th>ORIGEM</th><th>MODELO</th><th>COR</th><th>CHASSI</th><th>STATUS</th></tr>
+          </thead>
+          <tbody>${linhas}</tbody>
+        </table>
+      </div>`;
+  }
+
+  function textoDataLonga() {
+    const [a, m, d] = diaCalendario().split("-").map(Number);
+    return new Date(a, m - 1, d).toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
+  }
+
+  // Mostra o botão só se houver planilha de hoje; se não houver, esconde (e fecha) tudo
+  function atualizarPlanilha() {
+    const tem = planilha.length > 0;
+    $("#btnPlanilha").hidden = !tem;
+    if (!tem) { $("#plmFundo").hidden = true; return; }
+    if (planilhaAberta()) renderPlanilha();
+  }
+
+  $("#btnPlanilha").onclick = () => { renderPlanilha(); $("#plmFundo").hidden = false; };
+  $("#plmFechar").onclick = () => { $("#plmFundo").hidden = true; };
+  $("#plmFundo").addEventListener("click", (e) => { if (e.target.id === "plmFundo") $("#plmFundo").hidden = true; });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && planilhaAberta()) $("#plmFundo").hidden = true; });
+
   carregar();
+
+  // Espelho: a cada 15 s relê a planilha e as lavagens (status marcado no controle e chassis lavados)
+  setInterval(async () => {
+    if (!bruto) return;
+    try {
+      const [pl, lv] = await Promise.all([buscar("planilha"), buscar("lavagens")]);
+      planilha = planilhaDeHoje(pl);
+      bruto.lavagens = reindexar(lv);
+      atualizarPlanilha();
+    } catch (e) {}
+  }, 15000);
 
   let diaAtualVisivel = hojeOperacional();
   setInterval(() => {
