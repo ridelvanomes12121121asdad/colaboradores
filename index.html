@@ -278,6 +278,24 @@
   .pl-selo { display: inline-block; background: #94a3b8; color: #fff; font-size: 11px; padding: 3px 8px; border-radius: 5px; }
   .pl-selo.ok { background: #16a34a; }
   .pl-selo.sub { background: #d97706; }
+
+  /* ===== Próximo a lavar / Box ===== */
+  .prox { position: relative; background: var(--cor); color: #ffffff; border-radius: 18px; padding: 16px 20px 18px; margin-bottom: 14px; box-shadow: 0 0 0 4px color-mix(in srgb, var(--cor) 25%, transparent), var(--sombra); }
+  .prox-rot { font: 600 13px var(--font-b); letter-spacing: .08em; text-transform: uppercase; opacity: .92; }
+  .prox-nome { font: 700 54px/1.05 var(--font-d); margin: 4px 0 6px; }
+  .prox-nome::before { content: "▶"; font-size: .45em; margin-right: 10px; vertical-align: middle; opacity: .9; }
+  .prox-sub { font-size: 13px; opacity: .95; }
+  .box-card { display: flex; align-items: center; gap: 14px; background: var(--panel); border-radius: 16px; box-shadow: var(--sombra); padding: 16px 18px 16px 20px; margin-top: 28px; border-left: 8px solid var(--cor); }
+  .box-ico { font-size: 30px; line-height: 1; }
+  .box-rot { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--mut); }
+  .box-nome { font: 700 30px/1.1 var(--font-d); color: var(--cor); }
+  .box-sub { font-size: 14px; color: var(--mut); }
+
+  /* ===== Box 1 e Box 2 ===== */
+  .box-card { border-left-color: var(--accent); align-items: flex-start; }
+  .box-duplo { flex: 1; display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px 24px; }
+  .box-linha { border-left: 5px solid var(--cor); padding-left: 12px; }
+  .box-linha.vazio { --cor: var(--line); }
 </style>
 </head>
 <body>
@@ -305,12 +323,14 @@
 </div>
 
 <main>
+  <div id="proximoCard"></div>
   <div class="seg" id="barra" role="group" aria-label="Período">
     <button type="button" data-p="hoje">Hoje</button>
     <button type="button" data-p="mes">Este mês</button>
   </div>
   <div class="periodo-txt" id="periodoTxt"></div>
   <div id="conteudo"></div>
+  <div id="boxCard"></div>
 </main>
 
 <div class="modal-fundo" id="modalFundo" hidden>
@@ -489,12 +509,22 @@
     render();
     try {
       // Busca lavagens e showroom em paralelo (showroom pode não existir, cai no catch)
-      const [lavagens, showroom, pl] = await Promise.all([
+      const [lavagens, showroom, pl, prox, bx, bx2, fl] = await Promise.all([
         buscar("lavagens"),
         buscar("showroom").catch(() => ({})),
-        buscar("planilha").catch(() => ({}))
+        buscar("planilha").catch(() => ({})),
+        buscar("planilha/proximo").catch(() => null),
+        buscar("planilha/box1").catch(() => null),
+        buscar("planilha/box2").catch(() => null),
+        buscar("faltas/" + hojeOperacional()).catch(() => ({}))
       ]);
       planilha = planilhaDeHoje(pl);
+      if (prox !== null) proximoManual = (prox && prox.nome) ? prox : null;
+      // só troca se a leitura deu certo: numa falha de rede, continua mostrando o último registro
+      if (bx !== null) boxInfo.box1 = (bx && bx.nome) ? bx : null;
+      if (bx2 !== null) boxInfo.box2 = (bx2 && bx2.nome) ? bx2 : null;
+      salvarBoxLocal();
+      faltasHoje = Object.values(fl || {}).map((f) => f && f.nome).filter(Boolean);
       bruto = {
         lavagens: reindexar(lavagens),
         showroom: reindexar(showroom)
@@ -588,6 +618,8 @@
   }
 
   function render() {
+    renderProximo();
+    renderBox();
     document.querySelectorAll("#barra [data-p]").forEach((b) => b.classList.toggle("on", b.dataset.p === periodo));
     $("#atualizado").textContent = atualizadoEm
       ? "Atualizado às " + atualizadoEm.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: FUSO })
@@ -848,16 +880,139 @@
   $("#plmFundo").addEventListener("click", (e) => { if (e.target.id === "plmFundo") $("#plmFundo").hidden = true; });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && planilhaAberta()) $("#plmFundo").hidden = true; });
 
+  // ============================================================
+  // PRÓXIMO A LAVAR e BOX — somente leitura (quem decide é o controle da lavagem)
+  // Automático: quem fez MENOS carros hoje (empate: quem lavou há mais tempo; faltosos ficam de fora).
+  // Manual (escolhido no controle): vale até uma nova lavagem ser registrada.
+  // ============================================================
+  let proximoManual = null, boxInfo = { box1: null, box2: null }, faltasHoje = [];
+
+  // O último registro de limpeza do box fica na tela até que um novo seja registrado
+  // (guardado no banco e também neste aparelho, para aparecer mesmo sem conexão).
+  function salvarBoxLocal() {
+    try { localStorage.setItem("box-info:v1", JSON.stringify(boxInfo)); } catch (e) {}
+  }
+  function carregarBoxLocal() {
+    try {
+      const t = JSON.parse(localStorage.getItem("box-info:v1") || "null");
+      if (t && typeof t === "object") boxInfo = { box1: t.box1 || null, box2: t.box2 || null };
+    } catch (e) {}
+  }
+  carregarBoxLocal();
+
+  function tsMs(ts) { return tsEmMs(ts) || 0; }
+
+  function ultimoTsLavagens() {
+    let m = 0;
+    if (bruto) {
+      for (const regs of Object.values(bruto.lavagens)) {
+        for (const r of Object.values(regs || {})) { const t = r ? tsMs(r.ts) : 0; if (t > m) m = t; }
+      }
+    }
+    return m;
+  }
+
+  function assinaturaLavagens() {
+    let n = 0;
+    if (bruto) for (const regs of Object.values(bruto.lavagens)) n += Object.keys(regs || {}).length;
+    return n + ":" + ultimoTsLavagens();
+  }
+
+  function calcularProximo() {
+    const hoje = hojeOperacional();
+    const cont = {}, ultimo = {};
+    nomes.forEach((n) => { cont[n] = 0; ultimo[n] = 0; });
+    if (bruto) {
+      Object.values(bruto.lavagens[hoje] || {}).forEach((r) => {
+        if (!r || cont[r.nome] === undefined) return;
+        cont[r.nome]++;
+        const t = tsMs(r.ts);
+        if (t > ultimo[r.nome]) ultimo[r.nome] = t;
+      });
+    }
+    if (proximoManual && cont[proximoManual.nome] !== undefined && tsMs(proximoManual.ts) > ultimoTsLavagens()) {
+      return { nome: proximoManual.nome, manual: true, cont };
+    }
+    let cands = nomes.filter((n) => !faltasHoje.includes(n));
+    if (!cands.length) cands = nomes.slice();
+    cands.sort((a, b) => cont[a] - cont[b] || ultimo[a] - ultimo[b] || nomes.indexOf(a) - nomes.indexOf(b));
+    return { nome: cands[0], manual: false, cont };
+  }
+
+  function renderProximo() {
+    const card = $("#proximoCard");
+    if (!card) return;
+    if (!bruto) { card.innerHTML = ""; return; }
+    const p = calcularProximo();
+    const placar = nomes.map((n) => esc(n) + " <b>" + p.cont[n] + "</b>").join(" · ");
+    const ausentes = nomes.filter((n) => faltasHoje.includes(n));
+    card.innerHTML = `
+      <div class="prox" style="--cor:${EQUIPE[p.nome]}">
+        <div class="prox-rot">Próximo a lavar</div>
+        <div class="prox-nome">${esc(p.nome)}</div>
+        <div class="prox-sub">${p.manual ? "Escolhido manualmente · " : ""}Carros hoje: ${placar}${ausentes.length ? " · Ausente: " + esc(ausentes.join(", ")) : ""}</div>
+      </div>`;
+  }
+
+  function renderBox() {
+    const card = $("#boxCard");
+    if (!card) return;
+    const b1 = boxInfo.box1, b2 = boxInfo.box2;
+    const valido = (b) => b && EQUIPE[b.nome];
+    if (!valido(b1) && !valido(b2)) { card.innerHTML = ""; return; }
+
+    const quandoDe = (b) => {
+      const ms = tsMs(b.ts);
+      if (!ms) return "";
+      const d = diaOperacionalDe(ms), h = hojeOperacional();
+      const [a, m, dd] = h.split("-").map(Number);
+      const ontem = iso(new Date(a, m - 1, dd - 1));
+      return (d === h ? "hoje" : d === ontem ? "ontem" : brData(d)) + " às " + hora(ms);
+    };
+    const linha = (rotulo, b) => valido(b)
+      ? `<div class="box-linha" style="--cor:${EQUIPE[b.nome]}">
+           <div class="box-rot">${rotulo} · último a limpar</div>
+           <div class="box-nome">${esc(b.nome)}</div>
+           <div class="box-sub">${esc(quandoDe(b))}</div>
+         </div>`
+      : `<div class="box-linha vazio">
+           <div class="box-rot">${rotulo} · último a limpar</div>
+           <div class="box-sub">Sem registro</div>
+         </div>`;
+
+    card.innerHTML = `
+      <div class="box-card">
+        <div class="box-ico" aria-hidden="true">🧽</div>
+        <div class="box-duplo">${linha("Box 1", b1)}${linha("Box 2", b2)}</div>
+      </div>`;
+  }
+
   carregar();
 
   // Espelho: a cada 15 s relê a planilha e as lavagens (status marcado no controle e chassis lavados)
   setInterval(async () => {
     if (!bruto) return;
     try {
-      const [pl, lv] = await Promise.all([buscar("planilha"), buscar("lavagens")]);
+      const [pl, lv, prox, bx, bx2, fl] = await Promise.all([
+        buscar("planilha"),
+        buscar("lavagens"),
+        buscar("planilha/proximo").catch(() => null),
+        buscar("planilha/box1").catch(() => null),
+        buscar("planilha/box2").catch(() => null),
+        buscar("faltas/" + hojeOperacional()).catch(() => ({}))
+      ]);
+      const antes = assinaturaLavagens();
       planilha = planilhaDeHoje(pl);
       bruto.lavagens = reindexar(lv);
+      if (prox !== null) proximoManual = (prox && prox.nome) ? prox : null;
+      // só troca se a leitura deu certo: numa falha de rede, continua mostrando o último registro
+      if (bx !== null) boxInfo.box1 = (bx && bx.nome) ? bx : null;
+      if (bx2 !== null) boxInfo.box2 = (bx2 && bx2.nome) ? bx2 : null;
+      salvarBoxLocal();
+      faltasHoje = Object.values(fl || {}).map((f) => f && f.nome).filter(Boolean);
       atualizarPlanilha();
+      if (assinaturaLavagens() !== antes) render();      // mudou algum carro: redesenha o ranking também
+      else { renderProximo(); renderBox(); }
     } catch (e) {}
   }, 15000);
 
